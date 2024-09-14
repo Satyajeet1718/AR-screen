@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Augmented Camera with Image Upload</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        video, canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        #canvas-overlay {
+            z-index: 2;
+        }
+        #controls {
+            position: absolute;
+            top: 60px;
+            left: 10px;
+            z-index: 3;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        #image-upload {
+            display: none;
+        }
+        #plus-sign-container {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 3;
+            font-size: 32px;
+            cursor: pointer;
+            text-align: center;
+            font-weight: bold;
+            color: black;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Video element for camera feed -->
+    <video id="camera-stream" autoplay></video>
+
+    <!-- Canvas for overlay -->
+    <canvas id="canvas-overlay"></canvas>
+
+    <!-- "+" sign for image upload -->
+    <div id="plus-sign-container" onclick="document.getElementById('image-upload').click();">+</div>
+
+    <!-- Controls for adjusting dimensions -->
+    <div id="controls">
+        <label for="box-width">Box Width (%):</label>
+        <input type="range" id="box-width" min="10" max="90" value="50"> <br>
+        <label for="box-height">Box Height (%):</label>
+        <input type="range" id="box-height" min="10" max="90" value="50"> <br>
+        <input type="file" id="image-upload" accept="image/*">
+    </div>
+
+    <script>
+        const video = document.getElementById('camera-stream');
+        const canvas = document.getElementById('canvas-overlay');
+        const ctx = canvas.getContext('2d');
+        const boxWidthControl = document.getElementById('box-width');
+        const boxHeightControl = document.getElementById('box-height');
+        const imageUpload = document.getElementById('image-upload');
+
+        let boxWidthPercentage = 50;  // Default box width as 50%
+        let boxHeightPercentage = 50; // Default box height as 50%
+        let uploadedImage = null;     // Store the uploaded image
+
+        // Set the canvas size to match the video size
+        function resizeCanvas() {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+        }
+
+        // Draw the box and overlay, with the uploaded image if available
+        function drawOverlay() {
+            resizeCanvas();
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Calculate box dimensions based on percentage
+            const rectWidth = canvas.width * (boxWidthPercentage / 100);
+            const rectHeight = canvas.height * (boxHeightPercentage / 100);
+            const rectX = (canvas.width - rectWidth) / 2;
+            const rectY = (canvas.height - rectHeight) / 2;
+            const borderThickness = 10;
+
+            // Draw the black border
+            ctx.fillStyle = 'black';
+            ctx.fillRect(rectX - borderThickness, rectY - borderThickness, rectWidth + borderThickness * 2, rectHeight + borderThickness * 2);
+
+            if (uploadedImage) {
+                // Draw the uploaded image inside the box
+                ctx.drawImage(uploadedImage, rectX, rectY, rectWidth, rectHeight);
+            } else {
+                // Draw the white box (no image uploaded)
+                ctx.fillStyle = 'white';
+                ctx.fillRect(rectX, rectY, rectWidth, rectHeight);
+            }
+
+            // Loop to constantly redraw the overlay
+            requestAnimationFrame(drawOverlay);
+        }
+
+        // Listen for changes in box dimensions
+        boxWidthControl.addEventListener('input', (e) => {
+            boxWidthPercentage = e.target.value;
+        });
+
+        boxHeightControl.addEventListener('input', (e) => {
+            boxHeightPercentage = e.target.value;
+        });
+
+        // Handle image upload
+        imageUpload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        uploadedImage = img;  // Store the uploaded image
+                    };
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Start the video stream and overlay
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then((stream) => {
+                video.srcObject = stream;
+                video.onloadedmetadata = () => {
+                    drawOverlay(); // Start drawing the overlay once video is ready
+                };
+            })
+            .catch((err) => {
+                console.error("Error accessing the camera: ", err);
+            });
+    </script>
+</body>
+</html>
